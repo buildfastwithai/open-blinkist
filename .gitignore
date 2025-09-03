@@ -39,3 +39,29 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python
+server/venv/
+server/__pycache__/
+server/*.pyc
+server/*.pyo
+server/*.pyd
+server/.Python
+server/env/
+server/ENV/
+server/.env
+server/.venv
+server/pip-log.txt
+server/pip-delete-this-directory.txt
+server/.pytest_cache/
+server/htmlcov/
+server/.coverage
+server/.cache
+server/nosetests.xml
+server/coverage.xml
+server/pytest.ini
+server/.tox/
+server/gunicorn.pid
+server/access.log
+server/error.log
+server/*.log
