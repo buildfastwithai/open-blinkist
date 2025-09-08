@@ -8,7 +8,7 @@ import requests
 import json
 import time
 
-API_BASE = "http://localhost:8000"
+API_BASE = "http://localhost:8080"
 
 def test_health():
     """Test the health endpoint"""
@@ -177,7 +177,7 @@ def main():
         print("🎊 All tests passed! Your API is working correctly.")
         print("\n🌐 Ready to use:")
         print("   Frontend: http://localhost:3000")
-        print("   API Docs: http://localhost:8000/docs")
+        print("   API Docs: http://localhost:8080/docs")
     else:
         print("⚠️  Some tests failed. Check your Groq API key and configuration.")
 

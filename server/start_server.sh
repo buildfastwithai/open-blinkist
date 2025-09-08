@@ -32,8 +32,12 @@ if grep -q "your_groq_api_key_here" .env; then
 fi
 
 echo "📚 Virtual environment activated"
-echo "🌐 Starting server on http://localhost:8000"
-echo "📖 API docs will be available at http://localhost:8000/docs"
+
+# Get port from environment variable or default to 8080
+PORT=${PORT:-8080}
+
+echo "🌐 Starting server on http://localhost:${PORT}"
+echo "📖 API docs will be available at http://localhost:${PORT}/docs"
 echo "🔄 Use Ctrl+C to stop the server"
 echo ""
 
