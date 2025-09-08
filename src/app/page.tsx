@@ -33,6 +33,9 @@ export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log("handleSubmit");
+    console.log(bookName, role, numInsights);
+    console.log(API_BASE);
     e.preventDefault();
     if (!bookName.trim()) return;
 
