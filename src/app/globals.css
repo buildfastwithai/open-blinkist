@@ -252,6 +252,107 @@ body {
   animation-delay: 0.4s;
 }
 
+/* Loading spinner animation */
+@keyframes neo-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.neo-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid transparent;
+  border-top: 3px solid currentColor;
+  border-radius: 50%;
+  animation: neo-spin 1s linear infinite;
+}
+
+/* Skeleton loading animation */
+@keyframes neo-skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.neo-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: neo-skeleton 1.5s ease-in-out infinite;
+  border: var(--neo-border-medium) solid var(--neo-border-primary);
+}
+
+.neo-skeleton-text {
+  height: 16px;
+  border-radius: 0;
+}
+
+.neo-skeleton-title {
+  height: 32px;
+  border-radius: 0;
+}
+
+.neo-skeleton-card {
+  height: 200px;
+  border-radius: 0;
+}
+
+/* Pulse animation for loading states */
+@keyframes neo-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.neo-pulse {
+  animation: neo-pulse 2s ease-in-out infinite;
+}
+
+/* Progress bar animation */
+@keyframes neo-progress {
+  0% {
+    width: 0%;
+  }
+  25% {
+    width: 30%;
+  }
+  50% {
+    width: 60%;
+  }
+  75% {
+    width: 85%;
+  }
+  100% {
+    width: 95%;
+  }
+}
+
+.neo-progress-bar {
+  height: 8px;
+  background: linear-gradient(90deg, #ff0080, #00ff80, #ffff00);
+  border: var(--neo-border-thin) solid var(--neo-border-primary);
+  animation: neo-progress 8s ease-in-out infinite;
+  transition: width 0.3s ease;
+}
+
+.neo-progress-container {
+  width: 100%;
+  height: 12px;
+  background: #f0f0f0;
+  border: var(--neo-border-thin) solid var(--neo-border-primary);
+  overflow: hidden;
+}
+
 /* Glitch effect for headers */
 @keyframes neo-glitch {
   0% {

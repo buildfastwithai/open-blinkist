@@ -27,6 +27,8 @@ export default function Home() {
   const [error, setError] = useState("");
   const [currentStep, setCurrentStep] = useState<"input" | "summary">("input");
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -34,6 +36,123 @@ export default function Home() {
     process.env.NEXT_PUBLIC_API_URL ||
     "https://hammerhead-app-53pie.ondigitalocean.app" ||
     "http://localhost:8080";
+
+  // Loading skeleton component
+  const LoadingSkeleton = () => (
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{ background: "#F5F5F5" }}
+    >
+      <div className="absolute inset-0 neo-grid-bg"></div>
+
+      {/* Header Skeleton */}
+      <header className="relative z-10 p-4 border-b-4 border-black bg-white">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-black neo-border flex items-center justify-center">
+              <span className="text-white font-bold neo-mono text-sm">🎧</span>
+            </div>
+            <div className="neo-skeleton neo-skeleton-text w-32"></div>
+          </div>
+          <div className="neo-skeleton neo-skeleton-text w-24"></div>
+        </div>
+      </header>
+
+      {/* Main Content Skeleton */}
+      <main className="relative z-10 px-4 py-6">
+        <div className="max-w-4xl mx-auto">
+          {/* Book Info Skeleton */}
+          <div className="neo-card mb-6 bg-white">
+            <div className="text-center mb-6">
+              <div className="neo-skeleton neo-skeleton-title w-64 mx-auto mb-4"></div>
+              <div className="flex flex-wrap justify-center gap-2 mb-4">
+                <div className="neo-skeleton neo-skeleton-text w-24"></div>
+                <div className="neo-skeleton neo-skeleton-text w-32"></div>
+              </div>
+              <div className="neo-skeleton neo-skeleton-card w-full mb-4"></div>
+              <div className="flex flex-wrap justify-center gap-3">
+                <div className="neo-skeleton neo-skeleton-text w-20 h-12"></div>
+                <div className="neo-skeleton neo-skeleton-text w-20 h-12"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Insights Skeleton */}
+          <div className="neo-card bg-white">
+            <div className="mb-6 text-center">
+              <div className="neo-skeleton neo-skeleton-title w-32 mx-auto mb-3"></div>
+              <div className="neo-skeleton neo-skeleton-text w-24 mx-auto"></div>
+            </div>
+
+            <div className="space-y-6">
+              {[1, 2, 3, 4, 5].map((index) => (
+                <div key={index} className="neo-card bg-gray-50 relative">
+                  <div className="absolute -top-3 -left-3 w-8 h-8 bg-black neo-border flex items-center justify-center">
+                    <span className="text-white font-bold neo-mono text-sm">
+                      {index}
+                    </span>
+                  </div>
+                  <div className="pt-2 space-y-3">
+                    <div className="neo-skeleton neo-skeleton-text w-3/4"></div>
+                    <div className="neo-skeleton neo-skeleton-text w-full"></div>
+                    <div className="neo-skeleton neo-skeleton-text w-5/6"></div>
+                    <div className="neo-skeleton neo-skeleton-text w-4/5"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Loading Progress */}
+          <div className="mt-6 space-y-4">
+            <div className="neo-card bg-cyan-400 mx-auto max-w-md px-6 py-4">
+              <div className="text-center mb-4">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <div className="neo-spinner"></div>
+                  <span className="neo-mono font-bold text-sm">
+                    AI PROCESSING
+                  </span>
+                  <div className="flex gap-1">
+                    <div className="neo-audio-wave bg-black"></div>
+                    <div className="neo-audio-wave bg-black"></div>
+                    <div className="neo-audio-wave bg-black"></div>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="neo-progress-container mb-3">
+                  <div className="neo-progress-bar"></div>
+                </div>
+
+                <div className="neo-mono text-xs">
+                  Analyzing book content and generating insights...
+                </div>
+              </div>
+            </div>
+
+            {/* Processing Steps */}
+            <div className="neo-card bg-yellow-400 mx-auto max-w-md px-4 py-3">
+              <div className="neo-mono text-xs text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span>📚</span>
+                  <span>Book Analysis</span>
+                  <span>→</span>
+                  <span>🧠</span>
+                  <span>AI Processing</span>
+                  <span>→</span>
+                  <span>💡</span>
+                  <span>Insights Generation</span>
+                </div>
+                <div className="text-black/70">
+                  This usually takes 10-30 seconds
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     console.log("handleSubmit");
@@ -47,6 +166,10 @@ export default function Home() {
     setCurrentStep("summary");
 
     try {
+      // Add timeout for the request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
       // First, get the book summary
       const summaryResponse = await fetch(`${API_BASE}/summarize_book`, {
         method: "POST",
@@ -58,7 +181,10 @@ export default function Home() {
           role: role,
           num_insights: numInsights,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!summaryResponse.ok) {
         throw new Error("Failed to generate book summary");
@@ -70,7 +196,26 @@ export default function Home() {
       // Stay on summary page after generating insights
       setCurrentStep("summary");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      console.error("API Error:", err);
+
+      let errorMessage = "An unexpected error occurred";
+
+      if (err instanceof Error) {
+        if (err.name === "AbortError") {
+          errorMessage =
+            "Request timed out. The server might be busy. Please try again.";
+        } else if (err.message.includes("Failed to fetch")) {
+          errorMessage =
+            "Network error. Please check your connection and try again.";
+        } else if (err.message.includes("Failed to generate")) {
+          errorMessage =
+            "Failed to generate book summary. The book might not be found or the AI service is unavailable.";
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      setError(errorMessage);
       setCurrentStep("input");
     } finally {
       setLoading(false);
@@ -106,14 +251,26 @@ export default function Home() {
         return;
       }
 
+      setAudioLoading(true);
+
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.9;
       utterance.pitch = 1;
       utterance.volume = 1;
 
-      utterance.onstart = () => setIsPlaying(true);
-      utterance.onend = () => setIsPlaying(false);
-      utterance.onerror = () => setIsPlaying(false);
+      utterance.onstart = () => {
+        setAudioLoading(false);
+        setIsPlaying(true);
+      };
+      utterance.onend = () => {
+        setAudioLoading(false);
+        setIsPlaying(false);
+      };
+      utterance.onerror = () => {
+        setAudioLoading(false);
+        setIsPlaying(false);
+        setError("Error playing audio");
+      };
 
       speechSynthesisRef.current = utterance;
       window.speechSynthesis.speak(utterance);
@@ -133,7 +290,19 @@ export default function Home() {
     setCurrentStep("input");
     setBookSummary(null);
     setError("");
+    setLoadingProgress(0);
+    setAudioLoading(false);
     stopAudio();
+  };
+
+  const retryRequest = () => {
+    setError("");
+    setLoading(true);
+    setCurrentStep("summary");
+
+    // Trigger the same request again
+    const form = new Event("submit");
+    handleSubmit(form as any);
   };
 
   if (currentStep === "input") {
@@ -260,17 +429,18 @@ export default function Home() {
                     type="submit"
                     disabled={loading || !bookName.trim()}
                     className={`neo-button w-full md:w-auto text-sm md:text-base px-6 py-3 md:px-8 md:py-4 ${
-                      loading ? "opacity-50 cursor-not-allowed" : ""
+                      loading ? "opacity-75 cursor-not-allowed neo-pulse" : ""
                     }`}
                   >
                     {loading ? (
                       <span className="flex items-center justify-center gap-2">
+                        <div className="neo-spinner"></div>
+                        <span>GENERATING INSIGHTS...</span>
                         <div className="flex gap-1">
                           <div className="neo-audio-wave"></div>
                           <div className="neo-audio-wave"></div>
                           <div className="neo-audio-wave"></div>
                         </div>
-                        LOADING...
                       </span>
                     ) : (
                       "GET INSIGHTS →"
@@ -284,15 +454,34 @@ export default function Home() {
             {error && (
               <div className="neo-card bg-red-500 text-white mb-6">
                 <div className="neo-mono font-bold text-sm md:text-base mb-2">
-                  ERROR:
+                  ⚠️ ERROR:
                 </div>
-                <div className="neo-text">{error}</div>
+                <div className="neo-text mb-4">{error}</div>
+                <div className="flex flex-wrap gap-3 justify-center">
+                  <button
+                    onClick={retryRequest}
+                    className="bg-yellow-400 text-black neo-border border-black neo-mono font-bold px-4 py-2 text-sm hover:bg-yellow-300 transition-colors"
+                  >
+                    🔄 RETRY
+                  </button>
+                  <button
+                    onClick={() => setError("")}
+                    className="bg-white text-black neo-border border-black neo-mono font-bold px-4 py-2 text-sm hover:bg-gray-100 transition-colors"
+                  >
+                    ✕ DISMISS
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </main>
       </div>
     );
+  }
+
+  // Show loading skeleton when loading and current step is summary but no book summary yet
+  if (loading && currentStep === "summary" && !bookSummary) {
+    return <LoadingSkeleton />;
   }
 
   if (currentStep === "summary" && bookSummary) {
@@ -359,12 +548,19 @@ export default function Home() {
                     onClick={() =>
                       playAudio(formatSummaryForAudio(bookSummary))
                     }
-                    disabled={isPlaying}
+                    disabled={isPlaying || audioLoading}
                     className={`neo-button ${
-                      isPlaying ? "opacity-50 cursor-not-allowed" : ""
+                      isPlaying || audioLoading
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
                     } text-sm px-6 py-3`}
                   >
-                    {isPlaying ? (
+                    {audioLoading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="neo-spinner"></div>
+                        LOADING AUDIO...
+                      </span>
+                    ) : isPlaying ? (
                       <span className="flex items-center gap-2">
                         <div className="flex gap-1">
                           <div className="neo-audio-wave bg-white"></div>
@@ -461,6 +657,24 @@ export default function Home() {
                 ))}
               </div>
             </div>
+
+            {/* Error Display for Summary Page */}
+            {error && (
+              <div className="neo-card bg-red-500 text-white mb-6">
+                <div className="neo-mono font-bold text-sm md:text-base mb-2">
+                  ⚠️ ERROR:
+                </div>
+                <div className="neo-text mb-4">{error}</div>
+                <div className="text-center">
+                  <button
+                    onClick={() => setError("")}
+                    className="bg-white text-black neo-border border-black neo-mono font-bold px-4 py-2 text-sm hover:bg-gray-100 transition-colors"
+                  >
+                    ✕ DISMISS
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Bottom Action */}
             <div className="mt-8 text-center">
