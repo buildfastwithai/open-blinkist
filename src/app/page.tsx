@@ -30,7 +30,10 @@ export default function Home() {
 
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  const API_BASE =
+    process.env.NEXT_PUBLIC_API_URL ||
+    "https://hammerhead-app-53pie.ondigitalocean.app" ||
+    "http://localhost:8080";
 
   const handleSubmit = async (e: React.FormEvent) => {
     console.log("handleSubmit");
