@@ -379,6 +379,102 @@ body {
   animation: neo-glitch 0.3s ease-in-out;
 }
 
+/* Touch and swipe interactions */
+.neo-border-thin {
+  border: var(--neo-border-thin) solid var(--neo-border-primary);
+}
+
+/* Smooth touch interactions */
+.touch-pan-y {
+  touch-action: pan-y;
+}
+
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+.select-none {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Card swipe animations */
+@keyframes swipe-out-left {
+  from {
+    transform: translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%) rotate(-15deg);
+    opacity: 0;
+  }
+}
+
+@keyframes swipe-out-right {
+  from {
+    transform: translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%) rotate(15deg);
+    opacity: 0;
+  }
+}
+
+@keyframes card-enter {
+  from {
+    transform: scale(0.8) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.card-swipe-left {
+  animation: swipe-out-left 0.3s ease-in-out forwards;
+}
+
+.card-swipe-right {
+  animation: swipe-out-right 0.3s ease-in-out forwards;
+}
+
+.card-enter {
+  animation: card-enter 0.4s ease-out;
+}
+
+/* Enhanced button interactions for mobile */
+.neo-button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.neo-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: var(--neo-shadow-small);
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 767px) {
+  .neo-button {
+    min-height: 48px;
+    min-width: 48px;
+    padding: 12px 16px;
+  }
+
+  button[role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 /* Mobile-first responsive adjustments */
 @media (max-width: 480px) {
   :root {
@@ -396,12 +492,31 @@ body {
 
   .neo-button {
     font-size: 12px;
-    padding: 8px 12px;
+    padding: 10px 14px;
     letter-spacing: 0.25px;
+    min-height: 48px;
   }
 
   .neo-mono {
-    font-size: 12px;
+    font-size: 11px;
+  }
+
+  .neo-card {
+    padding: var(--neo-space-sm);
+  }
+
+  /* Optimize for thumb navigation */
+  .neo-title {
+    font-size: clamp(1.2rem, 5vw, 2.5rem);
+  }
+
+  .neo-subtitle {
+    font-size: clamp(0.9rem, 3vw, 1.3rem);
+  }
+
+  .neo-text {
+    font-size: 13px;
+    line-height: 1.6;
   }
 }
 
@@ -412,5 +527,20 @@ body {
     --neo-space-md: 16px;
     --neo-space-lg: 20px;
     --neo-space-xl: 32px;
+  }
+
+  .neo-button {
+    min-height: 48px;
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-height: 500px) and (orientation: landscape) {
+  .neo-card {
+    padding: var(--neo-space-xs) var(--neo-space-sm);
+  }
+
+  .neo-title {
+    font-size: clamp(1rem, 4vw, 1.8rem);
   }
 }

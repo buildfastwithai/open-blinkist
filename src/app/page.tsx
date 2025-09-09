@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // Types matching our FastAPI backend
 interface KeyInsight {
@@ -29,6 +29,11 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [currentInsightIndex, setCurrentInsightIndex] = useState(0);
+  const [startX, setStartX] = useState(0);
+  const [currentX, setCurrentX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
 
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -164,6 +169,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     setCurrentStep("summary");
+    setCurrentInsightIndex(0);
 
     try {
       // Add timeout for the request
@@ -292,8 +298,115 @@ export default function Home() {
     setError("");
     setLoadingProgress(0);
     setAudioLoading(false);
+    setCurrentInsightIndex(0);
+    setDragOffset(0);
     stopAudio();
   };
+
+  // Swipe handlers for touch interactions
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setStartX(touch.clientX);
+    setCurrentX(touch.clientX);
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    setCurrentX(touch.clientX);
+    const diff = touch.clientX - startX;
+    setDragOffset(diff);
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging || !bookSummary) return;
+    setIsDragging(false);
+
+    const swipeThreshold = 100;
+    const diff = currentX - startX;
+
+    if (Math.abs(diff) > swipeThreshold) {
+      if (diff > 0 && currentInsightIndex > 0) {
+        // Swipe right - previous insight
+        setCurrentInsightIndex(currentInsightIndex - 1);
+      } else if (
+        diff < 0 &&
+        currentInsightIndex < bookSummary.key_insights.length - 1
+      ) {
+        // Swipe left - next insight
+        setCurrentInsightIndex(currentInsightIndex + 1);
+      }
+    }
+
+    setDragOffset(0);
+  };
+
+  // Mouse handlers for desktop
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setStartX(e.clientX);
+    setCurrentX(e.clientX);
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setCurrentX(e.clientX);
+    const diff = e.clientX - startX;
+    setDragOffset(diff);
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging || !bookSummary) return;
+    setIsDragging(false);
+
+    const swipeThreshold = 100;
+    const diff = currentX - startX;
+
+    if (Math.abs(diff) > swipeThreshold) {
+      if (diff > 0 && currentInsightIndex > 0) {
+        setCurrentInsightIndex(currentInsightIndex - 1);
+      } else if (
+        diff < 0 &&
+        currentInsightIndex < bookSummary.key_insights.length - 1
+      ) {
+        setCurrentInsightIndex(currentInsightIndex + 1);
+      }
+    }
+
+    setDragOffset(0);
+  };
+
+  const nextInsight = () => {
+    if (
+      bookSummary &&
+      currentInsightIndex < bookSummary.key_insights.length - 1
+    ) {
+      setCurrentInsightIndex(currentInsightIndex + 1);
+    }
+  };
+
+  const prevInsight = () => {
+    if (currentInsightIndex > 0) {
+      setCurrentInsightIndex(currentInsightIndex - 1);
+    }
+  };
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (currentStep === "summary" && bookSummary) {
+        if (e.key === "ArrowLeft") {
+          prevInsight();
+        } else if (e.key === "ArrowRight") {
+          nextInsight();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [currentStep, bookSummary, currentInsightIndex]);
 
   const retryRequest = () => {
     setError("");
@@ -428,22 +541,26 @@ export default function Home() {
                   <button
                     type="submit"
                     disabled={loading || !bookName.trim()}
-                    className={`neo-button w-full md:w-auto text-sm md:text-base px-6 py-3 md:px-8 md:py-4 ${
-                      loading ? "opacity-75 cursor-not-allowed neo-pulse" : ""
+                    className={`neo-button w-full md:w-auto text-sm md:text-base px-6 py-3 md:px-8 md:py-4 transition-all duration-200 ${
+                      loading ? "bg-orange-400 cursor-not-allowed" : ""
                     }`}
                   >
                     {loading ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <div className="neo-spinner"></div>
-                        <span>GENERATING INSIGHTS...</span>
+                      <span className="flex items-center justify-center gap-3">
+                        <div className="neo-spinner border-white"></div>
+                        <span className="neo-mono font-bold">
+                          GENERATING INSIGHTS...
+                        </span>
                         <div className="flex gap-1">
-                          <div className="neo-audio-wave"></div>
-                          <div className="neo-audio-wave"></div>
-                          <div className="neo-audio-wave"></div>
+                          <div className="neo-audio-wave bg-white"></div>
+                          <div className="neo-audio-wave bg-white"></div>
+                          <div className="neo-audio-wave bg-white"></div>
                         </div>
                       </span>
                     ) : (
-                      "GET INSIGHTS →"
+                      <span className="neo-mono font-bold">
+                        🚀 GET INSIGHTS
+                      </span>
                     )}
                   </button>
                 </div>
@@ -494,27 +611,29 @@ export default function Home() {
         <div className="absolute inset-0 neo-grid-bg"></div>
 
         {/* Header */}
-        <header className="relative z-10 p-4 border-b-4 border-black bg-white">
+        <header className="relative z-10 p-3 md:p-4 border-b-4 border-black bg-white">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-black neo-border flex items-center justify-center">
-                <span className="text-white font-bold neo-mono text-sm">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="w-8 h-8 md:w-12 md:h-12 bg-black neo-border flex items-center justify-center">
+                <span className="text-white font-bold neo-mono text-xs md:text-sm">
                   🎧
                 </span>
               </div>
-              <h1 className="neo-title text-lg md:text-xl">Open BLINKIST</h1>
+              <h1 className="neo-title text-sm md:text-xl">Open BLINKIST</h1>
             </div>
             <button
               onClick={reset}
-              className="neo-button secondary text-xs md:text-sm px-3 py-2"
+              className="neo-button secondary text-xs px-3 py-2"
+              aria-label="Start new book analysis"
             >
-              ← NEW
+              <span className="md:hidden">📚</span>
+              <span className="hidden md:inline">← NEW</span>
             </button>
           </div>
         </header>
 
         {/* Main Content */}
-        <main className="relative z-10 px-4 py-6">
+        <main className="relative z-10 px-3 md:px-4 py-4 md:py-6">
           <div className="max-w-4xl mx-auto">
             {/* Book Info Section */}
             <div className="neo-card mb-6 bg-white">
@@ -586,75 +705,212 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Key Insights Section */}
-            <div className="neo-card bg-white">
+            {/* Key Insights Section - Swipeable Cards */}
+            <div className="neo-card bg-white relative overflow-hidden">
               <div className="mb-6">
                 <h2 className="neo-title text-lg md:text-xl mb-3 text-center">
                   💡 INSIGHTS
                 </h2>
-                <div className="neo-mono text-xs bg-yellow-400 neo-border inline-block px-3 py-1 mx-auto block text-center">
-                  {bookSummary.key_insights.length} INSIGHTS
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  <div className="neo-mono text-xs bg-yellow-400 neo-border px-3 py-1">
+                    {currentInsightIndex + 1} OF{" "}
+                    {bookSummary.key_insights.length}
+                  </div>
+                  <div className="flex gap-1">
+                    {bookSummary.key_insights.map((_, index) => (
+                      <div
+                        key={index}
+                        className={`w-2 h-2 border border-black ${
+                          index === currentInsightIndex
+                            ? "bg-black"
+                            : "bg-white"
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                {bookSummary.key_insights.map((insight, index) => (
-                  <div key={index} className="neo-card bg-gray-50 relative">
-                    {/* Insight Number */}
-                    <div className="absolute -top-3 -left-3 w-8 h-8 bg-black neo-border flex items-center justify-center">
-                      <span className="text-white font-bold neo-mono text-sm">
-                        {index + 1}
-                      </span>
-                    </div>
+              {/* Swipe Instructions */}
+              <div className="text-center mb-4">
+                <div className="neo-mono text-xs bg-cyan-400 neo-border inline-block px-3 py-1">
+                  <span className="md:hidden">📱 SWIPE LEFT/RIGHT</span>
+                  <span className="hidden md:inline">
+                    👆 TAP BUTTONS • ⌨️ ARROW KEYS
+                  </span>
+                </div>
+              </div>
 
-                    {/* Insight Header */}
-                    <div className="mb-4 pt-2">
-                      <h3 className="neo-subtitle text-sm md:text-base mb-3 uppercase">
-                        {insight.heading}
-                      </h3>
-                    </div>
-
-                    {/* Bullet Points */}
-                    <div className="space-y-3 mb-4">
-                      {insight.bullet_points.map((point, pointIndex) => (
-                        <div
-                          key={pointIndex}
-                          className="flex items-start gap-3"
-                        >
-                          <div className="w-5 h-5 bg-cyan-400 neo-border-thin border-black flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="text-black text-xs font-bold">
-                              →
-                            </span>
-                          </div>
-                          <div className="neo-text text-sm md:text-base leading-relaxed">
-                            {point}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Application */}
-                    {insight.application && (
-                      <div className="bg-orange-400 neo-border p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-6 h-6 bg-black neo-border-thin border-black flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-xs font-bold">
-                              🎯
-                            </span>
-                          </div>
-                          <div>
-                            <div className="neo-mono font-bold text-sm mb-2 uppercase">
-                              APPLY:
-                            </div>
-                            <div className="neo-text text-sm font-medium">
-                              {insight.application}
-                            </div>
-                          </div>
-                        </div>
+              {/* Card Container */}
+              <div
+                className="relative h-auto min-h-[400px] touch-pan-y"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+              >
+                {/* Swipe Direction Indicators */}
+                {isDragging && (
+                  <>
+                    <div
+                      className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-opacity duration-200 ${
+                        dragOffset > 50 ? "opacity-100" : "opacity-30"
+                      }`}
+                    >
+                      <div className="bg-green-400 neo-border p-3 neo-mono font-bold text-sm">
+                        ← PREV
                       </div>
-                    )}
+                    </div>
+                    <div
+                      className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-opacity duration-200 ${
+                        dragOffset < -50 ? "opacity-100" : "opacity-30"
+                      }`}
+                    >
+                      <div className="bg-blue-400 neo-border p-3 neo-mono font-bold text-sm">
+                        NEXT →
+                      </div>
+                    </div>
+                  </>
+                )}
+                {/* Current Insight Card */}
+                <div
+                  className="neo-card bg-gray-50 relative transition-transform duration-300 ease-out select-none cursor-grab active:cursor-grabbing card-enter"
+                  style={{
+                    transform: `translateX(${dragOffset}px) rotate(${
+                      dragOffset * 0.05
+                    }deg)`,
+                    opacity: isDragging ? 0.9 : 1,
+                    boxShadow: isDragging
+                      ? "var(--neo-shadow-large)"
+                      : "var(--neo-shadow-secondary)",
+                  }}
+                >
+                  {(() => {
+                    const insight =
+                      bookSummary.key_insights[currentInsightIndex];
+                    return (
+                      <>
+                        {/* Insight Number */}
+                        <div className="absolute -top-3 -left-3 w-8 h-8 bg-black neo-border flex items-center justify-center">
+                          <span className="text-white font-bold neo-mono text-sm">
+                            {currentInsightIndex + 1}
+                          </span>
+                        </div>
+
+                        {/* Insight Header */}
+                        <div className="mb-4 pt-2">
+                          <h3 className="neo-subtitle text-sm md:text-base mb-3 uppercase">
+                            {insight.heading}
+                          </h3>
+                        </div>
+
+                        {/* Bullet Points */}
+                        <div className="space-y-3 mb-4">
+                          {insight.bullet_points.map((point, pointIndex) => (
+                            <div
+                              key={pointIndex}
+                              className="flex items-start gap-3"
+                            >
+                              <div className="w-5 h-5 bg-cyan-400 neo-border-thin border-black flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span className="text-black text-xs font-bold">
+                                  →
+                                </span>
+                              </div>
+                              <div className="neo-text text-sm md:text-base leading-relaxed">
+                                {point}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Application */}
+                        {insight.application && (
+                          <div className="bg-orange-400 neo-border p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="w-6 h-6 bg-black neo-border-thin border-black flex items-center justify-center flex-shrink-0">
+                                <span className="text-white text-xs font-bold">
+                                  🎯
+                                </span>
+                              </div>
+                              <div>
+                                <div className="neo-mono font-bold text-sm mb-2 uppercase">
+                                  APPLY:
+                                </div>
+                                <div className="neo-text text-sm font-medium">
+                                  {insight.application}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex justify-between items-center mt-6 gap-4">
+                  <button
+                    onClick={prevInsight}
+                    disabled={currentInsightIndex === 0}
+                    className={`neo-button secondary text-xs md:text-sm px-3 py-2 md:px-4 md:py-2 flex-shrink-0 ${
+                      currentInsightIndex === 0
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
+                    aria-label="Previous insight"
+                  >
+                    <span className="md:hidden">←</span>
+                    <span className="hidden md:inline">← PREV</span>
+                  </button>
+
+                  {/* Desktop dot navigation */}
+                  <div className="hidden md:flex gap-2">
+                    {bookSummary.key_insights.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentInsightIndex(index)}
+                        className={`w-8 h-8 neo-border border-black flex items-center justify-center text-xs font-bold neo-mono transition-colors ${
+                          index === currentInsightIndex
+                            ? "bg-black text-white"
+                            : "bg-white text-black hover:bg-gray-100"
+                        }`}
+                        aria-label={`Go to insight ${index + 1}`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
                   </div>
-                ))}
+
+                  {/* Mobile progress indicator */}
+                  <div className="md:hidden flex items-center gap-2 flex-1 justify-center">
+                    <div className="neo-mono text-xs bg-yellow-400 neo-border px-2 py-1">
+                      {currentInsightIndex + 1}/
+                      {bookSummary.key_insights.length}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={nextInsight}
+                    disabled={
+                      currentInsightIndex ===
+                      bookSummary.key_insights.length - 1
+                    }
+                    className={`neo-button secondary text-xs md:text-sm px-3 py-2 md:px-4 md:py-2 flex-shrink-0 ${
+                      currentInsightIndex ===
+                      bookSummary.key_insights.length - 1
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
+                    aria-label="Next insight"
+                  >
+                    <span className="md:hidden">→</span>
+                    <span className="hidden md:inline">NEXT →</span>
+                  </button>
+                </div>
               </div>
             </div>
 
