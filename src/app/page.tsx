@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import {
+  saveBookAnalysis,
+  updateBookAnalysisWithResponse,
+  markAnalysisAsFailed,
+  type BookAnalysisRecord,
+} from "@/lib/supabase";
 
 // Types matching our FastAPI backend
 interface KeyInsight {
@@ -33,6 +39,9 @@ export default function Home() {
   const [currentX, setCurrentX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
+  const [currentAnalysisId, setCurrentAnalysisId] = useState<number | null>(
+    null
+  );
 
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -170,12 +179,35 @@ export default function Home() {
     setCurrentStep("summary");
     setCurrentInsightIndex(0);
 
+    const startTime = Date.now();
+    let analysisId: number | null = null;
+
     try {
+      // First, save the form data to Supabase
+      const analysisRecord: Omit<
+        BookAnalysisRecord,
+        "id" | "created_at" | "updated_at"
+      > = {
+        book_name: bookName,
+        role: role,
+        num_insights: numInsights,
+        status: "pending",
+        api_endpoint: `${API_BASE}/summarize_book`,
+        user_agent:
+          typeof window !== "undefined"
+            ? window.navigator.userAgent
+            : undefined,
+      };
+
+      const savedRecord = await saveBookAnalysis(analysisRecord);
+      analysisId = savedRecord.id;
+      setCurrentAnalysisId(analysisId);
+
       // Add timeout for the request
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
 
-      // First, get the book summary
+      // Get the book summary from API
       const summaryResponse = await fetch(`${API_BASE}/summarize_book`, {
         method: "POST",
         headers: {
@@ -198,6 +230,18 @@ export default function Home() {
       const summaryData: BookSummary = await summaryResponse.json();
       setBookSummary(summaryData);
 
+      // Calculate processing time
+      const processingTime = Date.now() - startTime;
+
+      // Update the record with the response data
+      if (analysisId) {
+        await updateBookAnalysisWithResponse(
+          analysisId,
+          summaryData,
+          processingTime
+        );
+      }
+
       // Stay on summary page after generating insights
       setCurrentStep("summary");
     } catch (err) {
@@ -217,6 +261,15 @@ export default function Home() {
             "Failed to generate book summary. The book might not be found or the AI service is unavailable.";
         } else {
           errorMessage = err.message;
+        }
+      }
+
+      // Mark analysis as failed in database
+      if (analysisId) {
+        try {
+          await markAnalysisAsFailed(analysisId, errorMessage);
+        } catch (dbError) {
+          console.error("Failed to update database with error:", dbError);
         }
       }
 
@@ -298,6 +351,7 @@ export default function Home() {
     setAudioLoading(false);
     setCurrentInsightIndex(0);
     setDragOffset(0);
+    setCurrentAnalysisId(null);
     stopAudio();
   };
 
@@ -414,12 +468,35 @@ export default function Home() {
     setCurrentStep("summary");
     setCurrentInsightIndex(0);
 
+    const startTime = Date.now();
+    let analysisId: number | null = null;
+
     try {
+      // Create a new analysis record for the retry
+      const analysisRecord: Omit<
+        BookAnalysisRecord,
+        "id" | "created_at" | "updated_at"
+      > = {
+        book_name: bookName,
+        role: role,
+        num_insights: numInsights,
+        status: "pending",
+        api_endpoint: `${API_BASE}/summarize_book`,
+        user_agent:
+          typeof window !== "undefined"
+            ? window.navigator.userAgent
+            : undefined,
+      };
+
+      const savedRecord = await saveBookAnalysis(analysisRecord);
+      analysisId = savedRecord.id;
+      setCurrentAnalysisId(analysisId);
+
       // Add timeout for the request
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
 
-      // First, get the book summary
+      // Get the book summary
       const summaryResponse = await fetch(`${API_BASE}/summarize_book`, {
         method: "POST",
         headers: {
@@ -442,6 +519,18 @@ export default function Home() {
       const summaryData: BookSummary = await summaryResponse.json();
       setBookSummary(summaryData);
 
+      // Calculate processing time
+      const processingTime = Date.now() - startTime;
+
+      // Update the record with the response data
+      if (analysisId) {
+        await updateBookAnalysisWithResponse(
+          analysisId,
+          summaryData,
+          processingTime
+        );
+      }
+
       // Stay on summary page after generating insights
       setCurrentStep("summary");
     } catch (err) {
@@ -461,6 +550,15 @@ export default function Home() {
             "Failed to generate book summary. The book might not be found or the AI service is unavailable.";
         } else {
           errorMessage = err.message;
+        }
+      }
+
+      // Mark analysis as failed in database
+      if (analysisId) {
+        try {
+          await markAnalysisAsFailed(analysisId, errorMessage);
+        } catch (dbError) {
+          console.error("Failed to update database with error:", dbError);
         }
       }
 
