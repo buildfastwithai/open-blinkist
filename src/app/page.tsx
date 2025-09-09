@@ -28,7 +28,6 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState<"input" | "summary">("input");
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0);
   const [startX, setStartX] = useState(0);
   const [currentX, setCurrentX] = useState(0);
@@ -296,7 +295,6 @@ export default function Home() {
     setCurrentStep("input");
     setBookSummary(null);
     setError("");
-    setLoadingProgress(0);
     setAudioLoading(false);
     setCurrentInsightIndex(0);
     setDragOffset(0);
@@ -406,16 +404,71 @@ export default function Home() {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [currentStep, bookSummary, currentInsightIndex]);
+  }, [currentStep, bookSummary, currentInsightIndex, nextInsight, prevInsight]);
 
-  const retryRequest = () => {
+  const retryRequest = async () => {
+    if (!bookName.trim()) return;
+
     setError("");
     setLoading(true);
     setCurrentStep("summary");
+    setCurrentInsightIndex(0);
 
-    // Trigger the same request again
-    const form = new Event("submit");
-    handleSubmit(form as any);
+    try {
+      // Add timeout for the request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+      // First, get the book summary
+      const summaryResponse = await fetch(`${API_BASE}/summarize_book`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          book_name: bookName,
+          role: role,
+          num_insights: numInsights,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!summaryResponse.ok) {
+        throw new Error("Failed to generate book summary");
+      }
+
+      const summaryData: BookSummary = await summaryResponse.json();
+      setBookSummary(summaryData);
+
+      // Stay on summary page after generating insights
+      setCurrentStep("summary");
+    } catch (err) {
+      console.error("API Error:", err);
+
+      let errorMessage = "An unexpected error occurred";
+
+      if (err instanceof Error) {
+        if (err.name === "AbortError") {
+          errorMessage =
+            "Request timed out. The server might be busy. Please try again.";
+        } else if (err.message.includes("Failed to fetch")) {
+          errorMessage =
+            "Network error. Please check your connection and try again.";
+        } else if (err.message.includes("Failed to generate")) {
+          errorMessage =
+            "Failed to generate book summary. The book might not be found or the AI service is unavailable.";
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      setError(errorMessage);
+      setCurrentStep("input");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (currentStep === "input") {
